@@ -2,6 +2,7 @@ import random
 from collections import deque
 import matplotlib.pyplot as plt
 
+plt.rcParams["keymap.save"] = []
 
 # Up, Right, Down, Left
 DIRECTIONS = [
@@ -10,6 +11,13 @@ DIRECTIONS = [
     (1, 0),
     (0, -1)
 ]
+
+MOVE_KEYS = {
+    "w": 0,
+    "d": 1,
+    "s": 2,
+    "a": 3,
+}
 
 
 def inside(maze, r, c):
@@ -74,7 +82,7 @@ def generate_maze(rows=15, cols=15):
 
 
 def neighbors(maze, position):
-
+    # All reachable cells from position
     r, c = position
     result = []
 
@@ -95,36 +103,47 @@ def visible_cells(maze, player):
 
     visible = {player}
 
-    r, c = player
-
     # Look in all four directions
     for direction, (dr, dc) in enumerate(DIRECTIONS):
 
         current = player
 
         while True:
-
             r, c = current
+
+            # Stop if wall blocks view
+            if maze[r][c][direction] == 1:
+                break
+
             nr = r + dr
             nc = c + dc
 
+            # Stop if next cell is outside maze
             if not inside(maze, nr, nc):
-                break
-
-            if maze[r][c][direction] == 1:
                 break
 
             current = (nr, nc)
             visible.add(current)
 
-            # Stop when reaching a turn or dead end
-            exits = neighbors(maze, current)
+            # Find open directions
+            open_directions = [
+                d for d in range(4)
+                if maze[nr][nc][d] == 0
+            ]
 
-            if len(exits) != 2:
+            # Continue through straight hallway
+            opposite = (direction + 2) % 4
+
+            if len(open_directions) != 2:
+                break
+
+            if direction not in open_directions:
+                break
+
+            if opposite not in open_directions:
                 break
 
     return visible
-
 
 def shortest_path(maze, start, goal):
 
@@ -155,194 +174,19 @@ def shortest_path(maze, start, goal):
     return []
 
 
-def draw_local_view(maze, player, explored):
-
-    visible = visible_cells(maze, player)
-
-    radius = 4
-
-    rows = len(maze)
-    cols = len(maze[0])
-
-    r1 = max(0, player[0] - radius)
-    r2 = min(rows - 1, player[0] + radius)
-
-    c1 = max(0, player[1] - radius)
-    c2 = min(cols - 1, player[1] + radius)
-
-    plt.figure(figsize=(7, 7))
-
-    cells = visible | explored
-
-    for r, c in cells:
-
-        if not (r1 <= r <= r2 and c1 <= c <= c2):
-            continue
-
-        # Top wall
-        if maze[r][c][0]:
-            plt.plot(
-                [c - 0.5, c + 0.5],
-                [r - 0.5, r - 0.5],
-                'k'
-            )
-
-        # Right wall
-        if maze[r][c][1]:
-            plt.plot(
-                [c + 0.5, c + 0.5],
-                [r - 0.5, r + 0.5],
-                'k'
-            )
-
-        # Bottom wall
-        if maze[r][c][2]:
-            plt.plot(
-                [c - 0.5, c + 0.5],
-                [r + 0.5, r + 0.5],
-                'k'
-            )
-
-        # Left wall
-        if maze[r][c][3]:
-            plt.plot(
-                [c - 0.5, c - 0.5],
-                [r - 0.5, r + 0.5],
-                'k'
-            )
-
-    # Player
-    plt.plot(
-        player[1],
-        player[0],
-        'bo',
-        markersize=12
-    )
-
-    plt.xlim(c1 - 0.5, c2 + 0.5)
-    plt.ylim(r2 + 0.5, r1 - 0.5)
-
-    plt.xticks([])
-    plt.yticks([])
-
-    plt.title("Your View of the Maze")
-
-    # Important: does not stop the terminal
-    plt.show(block=False)
-    plt.pause(0.1)
-
-
-def draw_map(maze, player, goal, map_start):
-
-    path = shortest_path(
-        maze,
-        map_start,
-        goal
-    )
-
-    plt.figure(figsize=(8, 8))
-
-    for r in range(len(maze)):
-
-        for c in range(len(maze[0])):
-
-            # Show path
-            if (r, c) in path:
-                plt.plot(
-                    c,
-                    r,
-                    'gs',
-                    markersize=8
-                )
-
-            # Top wall
-            if maze[r][c][0]:
-                plt.plot(
-                    [c - 0.5, c + 0.5],
-                    [r - 0.5, r - 0.5],
-                    'k'
-                )
-
-            # Right wall
-            if maze[r][c][1]:
-                plt.plot(
-                    [c + 0.5, c + 0.5],
-                    [r - 0.5, r + 0.5],
-                    'k'
-                )
-
-            # Bottom wall
-            if maze[r][c][2]:
-                plt.plot(
-                    [c - 0.5, c + 0.5],
-                    [r + 0.5, r + 0.5],
-                    'k'
-                )
-
-            # Left wall
-            if maze[r][c][3]:
-                plt.plot(
-                    [c - 0.5, c - 0.5],
-                    [r - 0.5, r + 0.5],
-                    'k'
-                )
-
-    # Player
-    plt.plot(
-        player[1],
-        player[0],
-        'bo',
-        markersize=12
-    )
-
-    # Goal
-    plt.plot(
-        goal[1],
-        goal[0],
-        'r*',
-        markersize=15
-    )
-
-    # Starting point of path
-    plt.plot(
-        map_start[1],
-        map_start[0],
-        'gs',
-        markersize=10
-    )
-
-    plt.xlim(
-        -0.5,
-        len(maze[0]) - 0.5
-    )
-
-    plt.ylim(
-        len(maze) - 0.5,
-        -0.5
-    )
-
-    plt.xticks([])
-    plt.yticks([])
-
-    plt.title("Map Found - Green = Path to Goal")
-
-    plt.show(block=False)
-    plt.pause(0.1)
-
-
 def random_cell(maze, forbidden):
+    # Chooses a random cell that is allowed
+    choices = [
+        (r, c)
+        for r in range(len(maze))
+        for c in range(len(maze[0]))
+        if (r, c) not in forbidden
+    ]
 
-    choices = []
-
-    for r in range(len(maze)):
-
-        for c in range(len(maze[0])):
-
-            if (r, c) not in forbidden:
-                choices.append((r, c))
+    if not choices:
+        raise ValueError("No available cells left")
 
     return random.choice(choices)
-
 
 def make_game():
 
@@ -385,139 +229,260 @@ def make_game():
         hazard
     )
 
+class MazeGame:
+    # Manage game state and show Matplotlib window
+    def __init__(self):
+        self.fig, self.ax = plt.subplots(figsize=(8, 8))
+        self.fig.canvas.manager.set_window_title("Maze Game")
+        self.fig.canvas.mpl_connect("key_press_event", self.on_key)
+        self.legend_text = self.fig.text(
+            0.5, 0.035,
+            "Blue circle = Player   |   Green square = Map / route   |   "
+            "Red triangle = Hazard   |   Red star = Goal / Victory",
+            ha="center", va="bottom", fontsize=8
+        )
 
-def move_player(maze, player):
+        self.new_game()
+        self.redraw()
+        self.fig.text(
+            0.5, 0.005,
+            "Use W/A/S/D to move. Press Q to quit",
+            ha="center", fontsize=9
+        )
+        self.fig.tight_layout(rect=(0, 0.04, 1, 1))
 
-    moves = {
-        'w': 0,
-        'd': 1,
-        's': 2,
-        'a': 3
-    }
+    def new_game(self):
+        self.maze, self.player, self.goal, self.map_position, self.hazard = (
+            make_game()
+        )
+        #printed hazard position to ensure it was spawning
+        #print("Hazard location:", self.hazard)
+        # Keep map's original cell
+        self.map_location = self.map_position
+        self.state = "playing"
+        self.map_collected = False
+        self.route = []
+        self.message = "Find the map, avoid the hazard, reach the goal"
 
-    while True:
+    def on_key(self, event):
+        # No need to press enter after every input
+        if event.key is None:
+            return
 
-        move = input(
-            "Move W/A/S/D (Q to quit): "
-        ).lower()
+        key = event.key.lower()
 
-        if move == 'q':
-            return None
+        if self.state in ("won", "lost", "quit"):
+            if key == "y" and self.state in ("won", "lost"):
+                self.new_game()
+                self.redraw()
+            elif key in ("n", "q"):
+                plt.close(self.fig)
+            return
 
-        if move not in moves:
+        if key == "q":
+            self.state = "quit"
+            self.message = "Goodbye"
+            self.redraw()
+            plt.close(self.fig)
+            return
 
-            print(
-                "Please enter W, A, S, D, or Q."
+        if key not in MOVE_KEYS:
+            return
+
+        directions = MOVE_KEYS[key]
+        r, c = self.player
+
+        # If a wall blocks movement, do not change player position
+        if self.maze[r][c][directions] == 1:
+            self.message = "There is a wall"
+            self.redraw()
+            return
+
+        dr, dc = DIRECTIONS[directions]
+        self.player = (r + dr, c + dc)
+        self.message = "Find the map, avoid the hazard, reach the goal"
+
+        if self.map_collected:
+            self.route = shortest_path(self.maze, self.player, self.goal)
+
+        # Check game events immediately after moving.
+        if self.player == self.map_position:
+            self.map_position = None
+            self.map_collected = True
+            self.route = shortest_path(
+                self.maze, self.player, self.goal
+            )
+            self.message = (
+                "You found the map!"
+                "The green cells show the shortest route to the exit"
             )
 
-            continue
+        if self.player == self.hazard:
+            self.state = "lost"
+            self.message = "Game Over! You found the hazard. Press Y to play again or Q to quit"
+        elif self.player == self.goal:
+            self.state = "won"
+            self.message = "You Win! Press Y to play again or Q to quit"
+                    
+        self.redraw()
 
-        direction = moves[move]
+    def draw_walls(self, cells):
+        # Draw the walls for the visible and explored cells
+        rows = len(self.maze)
+        cols = len(self.maze[0])
 
-        # Check for wall
-        if maze[player[0]][player[1]][direction] == 1:
+        for r, c in cells:
+            if not inside(self.maze, r, c):
+                continue
 
-            print("There is a wall there.")
-            continue
+            if self.maze[r][c][0]:
+                self.ax.plot([c - 0.5, c + 0.5],
+                             [r - 0.5, r - 0.5], "k-", linewidth=1.3)
+            if self.maze[r][c][1]:
+                self.ax.plot([c + 0.5, c + 0.5],
+                             [r - 0.5, r + 0.5], "k-", linewidth=1.3)
+            if self.maze[r][c][2]:
+                self.ax.plot([c - 0.5, c + 0.5],
+                             [r + 0.5, r + 0.5], "k-", linewidth=1.3)
+            if self.maze[r][c][3]:
+                self.ax.plot([c - 0.5, c - 0.5],
+                             [r - 0.5, r + 0.5], "k-", linewidth=1.3)
 
-        dr, dc = DIRECTIONS[direction]
+    def draw_local_view(self):
+        visible = visible_cells(self.maze, self.player)
 
-        return (
-            player[0] + dr,
-            player[1] + dc
+        cells = visible
+
+        self.draw_walls(cells)
+
+        # Once the map is collected it guides player to goal
+        if getattr(self, "map_collected", False):
+            # Route always starts at player and ends at goal
+            self.route = shortest_path(self.maze, self.player, self.goal)
+            visible_route = [cell for cell in self.route if cell in visible]
+            for r, c in visible_route:
+                if (r, c) != self.player and (r, c) != self.goal:
+                    self.ax.plot(
+                        c, r, marker="s", color="limegreen",
+                        markersize=8, linestyle="None"
+                    )
+
+
+        # Only draws if object is visible
+        if self.map_position is not None and self.map_position in visible:
+            self.ax.plot(
+                self.map_position[1], self.map_position[0],
+                marker="s", color="green", markersize=10,
+                linestyle="None", label="Map"
+            )
+
+        if self.hazard in visible:
+            self.ax.plot(
+                self.hazard[1], self.hazard[0],
+                marker="^", color="red", markersize=11,
+                linestyle="None", zorder=10
+            )
+
+        if self.goal in visible:
+            self.ax.plot(
+                self.goal[1], self.goal[0],
+                marker="*", color="red", markersize=13,
+                linestyle="None", label="Goal"
+            )
+
+        self.ax.plot(
+            self.player[1], self.player[0],
+            marker="o", color="blue", markersize=11,
+            linestyle="None", label="Player"
         )
+
+        # Set boundaries to not show future parts of the maze
+        player_r, player_c = self.player
+        min_r = min(r for r, c in cells)
+        max_r = max(r for r, c in cells)
+        min_c = min(c for r, c in cells)
+        max_c = max(c for r, c in cells)
+
+        half_height = max(
+            4.5,
+            player_r - min_r + 0.65,
+            max_r - player_r + 0.65
+        )
+
+        half_width = max(
+            4.5,
+            player_c - min_c + 0.65,
+            max_c - player_c + 0.65
+        )
+
+        self.ax.set_xlim(player_c - half_width, player_c + half_width)
+        self.ax.set_ylim(player_r + half_height, player_r - half_height)
+        self.ax.set_aspect("equal", adjustable="box")
+        self.ax.set_title("Local View - Blue = Player")
+        self.ax.set_xticks([])
+        self.ax.set_yticks([])
+
+    def draw_full_map(self):
+        # Find the shortest path from the starting point
+        map_start = random_cell(self.maze, {self.goal})
+        path = shortest_path(self.maze, map_start, self.goal)
+
+        for r, c in path:
+            self.ax.plot(c, r, "s", color="green", markersize=5)
+
+        all_cells = {
+            (r, c)
+            for r in range(len(self.maze))
+            for c in range(len(self.maze[0]))
+        }
+
+        self.draw_walls(all_cells)
+
+        self.ax.plot(
+            self.player[1], self.player[0],
+            marker="o", color="blue", markersize=9
+        )
+        self.ax.plot(
+            self.goal[1], self.goal[0],
+            marker="*", color="red", markersize=13
+        )
+        self.ax.plot(
+            map_start[1], map_start[0],
+            marker="s", color="green", markersize=10,
+            linestyle="None", label="Map location"
+        )
+        self.ax.plot(
+            self.hazard[1], self.hazard[0],
+            marker="^", color="red", markersize=10,
+            linestyle="None", label="Hazard"
+        )
+
+        self.ax.set_xlim(-0.6, len(self.maze[0]) - 0.4)
+        self.ax.set_ylim(len(self.maze) - 0.4, 0.6)
+        self.ax.set_aspect("equal", adjustable="box")
+        self.ax.set_title("Map Found - Green = SHortest Path to Goal")
+        self.ax.set_xticks([])
+        self.ax.set_yticks([])
+
+    def redraw(self):
+        # Clear and redraw on the same figure
+        self.ax.clear()
+
+        self.draw_local_view()
+
+        # Keep the legend visible at all times so the symbols are explained.
+        legend_text = (
+            "Blue circle = Player   |   Green square = Map / route   |   "
+            "Red triangle = Hazard   |   Red star = Goal / Victory"
+        )
+        self.fig.suptitle(self.message, fontsize=10, y=0.98)
+        self.legend_text.set_text(legend_text)
+        self.fig.canvas.draw_idle()
 
 
 def main():
-
-    while True:
-
-        maze, player, goal, map_position, hazard = make_game()
-
-        explored = {player}
-
-        print()
-        print("Welcome to the Maze Game!")
-        print("Find the goal without hitting the hazard.")
-        print()
-        print("W = Up")
-        print("A = Left")
-        print("S = Down")
-        print("D = Right")
-        print("Q = Quit")
-        print()
-
-        while True:
-
-            draw_local_view(
-                maze,
-                player,
-                explored
-            )
-
-            # Found the map
-            if player == map_position:
-
-                print()
-                print("You found the map!")
-
-                map_start = random_cell(
-                    maze,
-                    {goal}
-                )
-
-                draw_map(
-                    maze,
-                    player,
-                    goal,
-                    map_start
-                )
-
-                map_position = None
-
-            # Hit hazard
-            if player == hazard:
-
-                print()
-                print("GAME OVER!")
-                print("You found the hazard.")
-
-                break
-
-            # Reached goal
-            if player == goal:
-
-                print()
-                print("YOU WIN!")
-                print("You reached the goal.")
-
-                break
-
-            # Get next move
-            next_position = move_player(
-                maze,
-                player
-            )
-
-            if next_position is None:
-
-                print()
-                print("Thanks for playing!")
-
-                return
-
-            player = next_position
-            explored.add(player)
-
-        # Ask to play again
-        again = input(
-            "\nPlay again? (y/n): "
-        ).lower()
-
-        if again != 'y':
-
-            print("Thanks for playing!")
-            break
+    game = MazeGame()
+    plt.show()
 
 
 if __name__ == "__main__":
